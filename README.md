@@ -1,4 +1,4 @@
-# Proyecto IngSoft3 - versión B
+# Proyecto IngSoft3 - versión A
 Desarrollo de Tp 1, materia ingeniería de software 3 por Agostina Blasón.
 ## Instalación
 
