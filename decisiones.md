@@ -14,3 +14,14 @@ Declaración de uso de IA: qué partes hiciste con ayuda de inteligencia artific
 Usé Claude como asistente para entender los conceptos de la guía y resolver dudas puntuales sobre la interfaz 
 de GitHub (dónde encontrar botones, cómo interpretar mensajes de error, cómo resolver el conflicto de merge). 
 Verifiqué cada paso ejecutándolo yo misma y comparando el resultado con lo que pedía la guía del TP antes de continuar.
+
+
+TRABAJO PRÁCTICO Nro 2
+
+Elegi una app de gastos porque me resulta bastante interpretable, entiendo el dominio y no es muy complicada como requiere el TP. Es una app desarrollada principalmente por Claude.
+feat: app gestor de gastos (backend .NET 8 + frontend React/Vite)
+
+- Backend: minimal API + EF Core + PostgreSQL, entidad Gasto,
+  CRUD completo, endpoint de total y de resumen por categoría
+- Frontend: React + Vite, 2 pestañas (Gastos y Resumen),
+  filtros, formato de moneda y diseño responsive.
