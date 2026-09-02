@@ -119,3 +119,6 @@ app.MapDelete("/api/gastos/{id:int}", async (int id, GastosContext db) =>
 });
 
 app.Run();
+
+
+// TODO: endpoint de salud
