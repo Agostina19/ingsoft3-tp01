@@ -86,3 +86,47 @@ relativas, etc.).
 La dockerización (Dockerfiles, nginx.conf, docker-compose.yml) la ejecuté 
 a mano yo misma en mi terminal de los comandos de Docker y de Git, viendo 
 cada resultado antes de seguir.
+
+
+## TP3 — Planificación y trazabilidad
+
+### Duración del sprint
+Elegí sprints de 2 semanas. Es la duración más común en la industria, y me
+pareció la que mejor se adapta a trabajar sola: dos semanas me dan tiempo
+suficiente para completar tareas y ver avances reales, sin quedar atrapada
+replanificando todo cada semana (como pasaría con sprints de 1 semana)
+
+### Límite de trabajo en progreso (WIP)
+Configuré el límite en 2 para la columna "In Progress". Sigo la regla del
+enunciado: cantidad de personas + 1; trabajando sola, son 2. El "+1" me da
+margen para tener algo esperando (por ejemplo, un PR en revisión) sin
+frenarme del todo si quiero avanzar en otra cosa.
+
+### Diagnóstico de la historia mal escrita
+Está mal escrita porque describe una acción técnica, no un valor para
+alguien: ningún usuario pide "una tabla", eso es un paso de implementación.
+Tampoco tiene un beneficio real detrás — "para guardar los datos" solo
+repite lo mismo que ya dice el "quiero", no explica para qué le sirve a
+alguien. La reescribiría enfocándola en la capacidad que esa tabla permite,
+por ejemplo: "Como usuario quiero registrarme con usuario y contraseña para
+poder acceder a mi cuenta". Ahí sí hay un rol, algo que se puede probar, y
+un motivo real — y "crear la tabla usuarios" queda como una tarea técnica
+adentro de esa historia, no como la historia en sí.
+
+
+### Problemas encontrados y cómo los resolví
+- No tenía claro si la vinculación de sub-issues y el board tenían un orden
+  obligatorio entre sí; pero depsues entendí que son configuraciones independientes,
+  aunque el límite de WIP sí necesita que exista la vista Board primero.
+- Al crear el archivo del workflow (ci.yml) desde la web, no tenía claro que
+  estaba editando sobre main — GitHub no dejó commitear directo (rama
+  protegida del TP1) y me ofreció crear una rama nueva + PR automáticamente.
+
+### Declaración de uso de IA
+Usé Claude para entender los conceptos del TP (jerarquía épica/historia/
+tarea, sprint, WIP limit, trazabilidad)
+Todos los comandos y clics los ejecuté yo misma en mi cuenta de GitHub, sin
+que la IA tocara nada directamente. Verifiqué cada paso mirando el
+resultado real en GitHub (la jerarquía navegable, el board, y que el PR
+cerrara la tarea sola) antes de seguir.
+
