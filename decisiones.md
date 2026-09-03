@@ -130,3 +130,44 @@ que la IA tocara nada directamente. Verifiqué cada paso mirando el
 resultado real en GitHub (la jerarquía navegable, el board, y que el PR
 cerrara la tarea sola) antes de seguir.
 
+## TP4 — CI: Pipelines as Code
+
+### Estructura elegida del pipeline
+Dos jobs separados, build-backend y build-frontend, uno por cada Dockerfile
+del TP2. Van en paralelo porque son independientes entre sí: nada de lo que
+hace uno afecta al otro, así que no tiene sentido esperarlos en serie.
+Cada uno corre en su propia máquina limpia.
+
+### Qué cachea el pipeline
+Se cachean las capas de la imagen de Docker (vía type=gha, un scope
+distinto por job para que no se pisen entre sí). Se reutilizan las capas
+que no dependen de nada que haya cambiado: el restore de paquetes, el
+COPY del código si no cambió, etc. Si el cache desaparece (la plataforma
+lo puede desalojar en cualquier momento), el pipeline igual funciona:
+solo construye todo de cero, más lento. No es una dependencia, es una
+optimización.
+
+### Por qué construye con el Dockerfile en vez de compilar por su cuenta
+Para no tener dos definiciones de build que puedan diferir entre si. Si el
+workflow compilara con dotnet/npm por su lado, estaría verificando algo
+distinto de lo que después se termina desplegando. Usando el mismo
+Dockerfile del TP2, lo que el pipeline verifica es exactamente lo que se
+va a correr en producción.
+
+### Problemas encontrados y cómo los resolví
+- Al reemplazar el ci.yml del TP3 tuve dudas sobre si perdía algo de esa
+  entrega; no fue así: ese archivo era un esqueleto a propósito, y el
+  trabajo real del TP3 (issues, sprint, PR) queda intacto en el historial.
+- Al ver la primera corrida con cache, no relacioné el tiempo con el
+  cache funcionando -- la evidencia real es la palabra CACHED en el log,
+  no que la corrida sea más rápida (a veces no lo es).
+- Confundí en qué rama estaba parada al crear el PR de relleno; lo resolví
+  chequeando con git branch --show-current antes de seguir.
+
+### Declaración de uso de IA
+Usé Claude para entender los conceptos (jobs en paralelo, cache de capas,
+el gate del PR) y para que me explicara los comandos.
+Todos los comandos de git y gh los ejecuté yo misma en mi terminal.
+Verifiqué cada paso mirando el resultado real en GitHub Actions: los
+checks en verde/rojo, la palabra CACHED en el log, y el PR bloqueado de
+verdad cuando rompí el build a propósito.
