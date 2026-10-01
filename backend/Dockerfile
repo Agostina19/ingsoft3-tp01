@@ -7,6 +7,7 @@ WORKDIR /src
 # (usa la capa cacheada del restore).
 COPY Backend.sln .
 COPY GastosApi/GastosApi.csproj GastosApi/
+COPY GastosApi.Tests/GastosApi.Tests.csproj GastosApi.Tests/
 RUN dotnet restore Backend.sln
 
 COPY . .

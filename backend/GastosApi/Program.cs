@@ -1,6 +1,8 @@
 using GastosApi.Data;
 using GastosApi.Models;
 using Microsoft.EntityFrameworkCore;
+using GastosApi.Logica;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +14,9 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("Default");
 builder.Services.AddDbContext<GastosContext>(options =>
     options.UseNpgsql(connectionString));
+
+builder.Services.AddScoped<IGastosRepositorio, GastosRepositorio>();
+builder.Services.AddScoped<ServicioDeGastos>();
 
 var app = builder.Build();
 
@@ -51,12 +56,13 @@ app.MapGet("/api/gastos/resumen", async (string? mes, GastosContext db) =>
 {
     var query = db.Gastos.AsQueryable();
 
-    if (!string.IsNullOrEmpty(mes) && DateTime.TryParse($"{mes}-01", out var inicio))
+    var rango = Fechas.RangoDeMes(mes);
+    if (rango is not null)
     {
-        inicio = DateTime.SpecifyKind(inicio, DateTimeKind.Utc);
-        var fin = inicio.AddMonths(1);
+        var (inicio, fin) = rango.Value;
         query = query.Where(g => g.Fecha >= inicio && g.Fecha < fin);
     }
+
 
     var porCategoria = await query
         .GroupBy(g => g.Categoria)
@@ -75,33 +81,36 @@ app.MapGet("/api/gastos/{id:int}", async (int id, GastosContext db) =>
         ? Results.Ok(gasto)
         : Results.NotFound());
 
-// CREAR. Se ignora el Id que venga del cliente (lo genera la base) y se
-// normaliza la fecha a UTC (Npgsql guarda timestamptz y exige Kind=Utc).
-app.MapPost("/api/gastos", async (Gasto gasto, GastosContext db) =>
+// CREAR. La lógica (validar, normalizar fecha, guardar) vive en ServicioDeGastos;
+// el endpoint sólo pide, delega y responde.
+app.MapPost("/api/gastos", async (Gasto gasto, ServicioDeGastos servicio) =>
 {
-    gasto.Id = 0;
-    gasto.Fecha = gasto.Fecha == default
-        ? DateTime.UtcNow
-        : DateTime.SpecifyKind(gasto.Fecha, DateTimeKind.Utc);
-
-    db.Gastos.Add(gasto);
-    await db.SaveChangesAsync();
-    // 201 Created + la URL del recurso nuevo, como manda REST.
-    return Results.Created($"/api/gastos/{gasto.Id}", gasto);
+    try
+    {
+        var creado = await servicio.CrearAsync(gasto);
+        // 201 Created + la URL del recurso nuevo, como manda REST.
+        return Results.Created($"/api/gastos/{creado.Id}", creado);
+    }
+    catch (ArgumentException e)
+    {
+        return Results.BadRequest(e.Message);
+    }
 });
+
 
 // ACTUALIZAR. 404 si no existe; si existe, se copian los campos editables.
 app.MapPut("/api/gastos/{id:int}", async (int id, Gasto cambios, GastosContext db) =>
 {
+    var validacion = GastoValidator.Validar(cambios);
+    if (!validacion.EsValido) return Results.BadRequest(validacion.Error);
+
     var gasto = await db.Gastos.FindAsync(id);
     if (gasto is null) return Results.NotFound();
 
     gasto.Descripcion = cambios.Descripcion;
     gasto.Monto = cambios.Monto;
     gasto.Categoria = cambios.Categoria;
-    gasto.Fecha = cambios.Fecha == default
-        ? gasto.Fecha
-        : DateTime.SpecifyKind(cambios.Fecha, DateTimeKind.Utc);
+    gasto.Fecha = Fechas.NormalizarAUtc(cambios.Fecha, gasto.Fecha);
 
     await db.SaveChangesAsync();
     return Results.Ok(gasto);
