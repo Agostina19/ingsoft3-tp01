@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using GastosApi.Data;
 using GastosApi.Models;
 using Microsoft.EntityFrameworkCore;
@@ -129,5 +130,6 @@ app.MapDelete("/api/gastos/{id:int}", async (int id, GastosContext db) =>
 
 app.Run();
 
+[ExcludeFromCodeCoverage]
+public partial class Program { }
 
-// TODO: endpoint de salud
