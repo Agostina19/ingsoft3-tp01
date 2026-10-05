@@ -30,25 +30,39 @@ jobs:
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
 
-  build-frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Qué estamos verificando
-        env:
-          RAMA: ${{ github.head_ref || github.ref_name }}
-        run: echo "Rama $RAMA · commit $GITHUB_SHA"
-
-      - name: Bajar el código al runner
-        uses: actions/checkout@v6
-
-      - name: Preparar el constructor que sabe cachear
-        uses: docker/setup-buildx-action@v4
-
-      - name: Construir la imagen del frontend
+      - name: Construir la etapa de tests
         uses: docker/build-push-action@v7
         with:
-          context: ./frontend
+          context: ./backend
+          target: test          # ← se detiene en la etapa de tests, no llega a final
+          load: true            # ← deja la imagen en el Docker local, para poder correrla
           push: false
-          tags: frontend:ci
-          cache-from: type=gha,scope=frontend
-          cache-to: type=gha,mode=max,scope=frontend
+          tags: backend-test:ci
+          cache-from: type=gha,scope=backend-test
+          cache-to: type=gha,mode=max,scope=backend-test
+
+      - name: Correr los tests con coverage
+        run: |
+          docker run --rm -v "${{ github.workspace }}/TestResults:/out" backend-test:ci \
+            --collect:"XPlat Code Coverage"
+
+      - name: Reporte de coverage
+        if: ${{ !cancelled() }}        # ← también cuando los tests fallaron
+        run: |
+          dotnet tool install -g dotnet-reportgenerator-globaltool
+          reportgenerator -reports:"TestResults/*/coverage.cobertura.xml" -sourcedirs:backend \
+            -targetdir:coveragereport "-reporttypes:Html;MarkdownSummaryGithub" \
+            "-classfilters:-Program*;-GastosApi.Data.*;-GastosApi.Models.*"
+          cat coveragereport/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Publicar coverage y resultados
+        uses: actions/upload-artifact@v6
+        if: ${{ !cancelled() }}
+        with:
+          name: coverage-report
+          path: |
+            coveragereport
+            TestResults/tests.trx
+
+  build-frontend:
+    # ... (sin cambios por ahora)
