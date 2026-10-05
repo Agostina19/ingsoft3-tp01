@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import './App.css'
+import { validarGasto, filtrarGastos, obtenerResumen } from './lib/gastos'
+import { traerJson } from './api/cliente'
 
 // Rutas relativas: nunca escribimos el host del backend.
 // En dev lo resuelve el proxy de Vite; en contenedor, nginx.
@@ -33,6 +35,8 @@ function App() {
   // Formulario (sirve para alta y edición).
   const [form, setForm] = useState({ descripcion: '', monto: '', categoria: '' })
   const [editandoId, setEditandoId] = useState(null)
+  const [error, setError] = useState('')
+
 
   // Filtros de la pestaña Gastos.
   const [filtroCat, setFiltroCat] = useState('')
@@ -48,8 +52,8 @@ function App() {
 
   // Trae el resumen del dashboard, filtrado por el mes seleccionado.
   async function cargarResumen(mes) {
-    const url = mes ? `${API}/resumen?mes=${mes}` : `${API}/resumen`
-    const res = await fetch(url).then((r) => r.json())
+    const res = await obtenerResumen(mes, traerJson)
+
     setResumen(res.porCategoria)
     setResumenTotal(res.total)
     setResumenCant(res.cantidad)
@@ -68,6 +72,14 @@ function App() {
   // Alta o edición según si hay un id en edición.
   async function guardar(e) {
     e.preventDefault()
+    
+    const validacion = validarGasto(form)
+    if (!validacion.valido) {
+      setError(validacion.error)
+      return
+    }
+    setError('')
+
     const body = JSON.stringify({
       descripcion: form.descripcion,
       monto: Number(form.monto),
@@ -92,6 +104,7 @@ function App() {
   }
 
   function cancelar() {
+    setError('')
     setForm({ descripcion: '', monto: '', categoria: '' })
     setEditandoId(null)
   }
@@ -109,11 +122,8 @@ function App() {
   const meses = [...new Set(gastos.map((g) => g.fecha.slice(0, 7)))].sort().reverse()
 
   // Lista visible: aplica filtro por categoría y búsqueda por descripción.
-  const gastosVisibles = gastos.filter((g) => {
-    const coincideCat = !filtroCat || g.categoria === filtroCat
-    const coincideTexto = g.descripcion.toLowerCase().includes(busqueda.toLowerCase())
-    return coincideCat && coincideTexto
-  })
+  const gastosVisibles = filtrarGastos(gastos, filtroCat, busqueda)
+
 
   // El monto más alto entre las categorías, para dimensionar las barras del resumen.
   const maxCat = Math.max(1, ...resumen.map((r) => r.total))
@@ -167,6 +177,9 @@ function App() {
                   Cancelar
                 </button>
               )}
+              
+              {error && <p style={{ color: 'crimson' }}>{error}</p>}
+
             </form>
           </section>
 

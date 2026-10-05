@@ -5,6 +5,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GastosApi", "GastosApi\GastosApi.csproj", "{ABC189D6-FBA7-4B94-8EA2-EBD68CF02A9B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GastosApi.Tests", "GastosApi.Tests\GastosApi.Tests.csproj", "{53B18046-9960-4B69-8D45-ED4238800740}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{ABC189D6-FBA7-4B94-8EA2-EBD68CF02A9B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{ABC189D6-FBA7-4B94-8EA2-EBD68CF02A9B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{ABC189D6-FBA7-4B94-8EA2-EBD68CF02A9B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{53B18046-9960-4B69-8D45-ED4238800740}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{53B18046-9960-4B69-8D45-ED4238800740}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{53B18046-9960-4B69-8D45-ED4238800740}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{53B18046-9960-4B69-8D45-ED4238800740}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
