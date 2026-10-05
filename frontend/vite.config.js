@@ -14,4 +14,15 @@ export default defineConfig({
       '/api': 'http://localhost:8080',
     },
   },
+  test: {
+    coverage: {
+      provider: 'v8',
+      // json-summary deja coverage-summary.json: lo lee el pipeline para el Summary
+      reporter: ['text', 'html', 'lcov', 'json-summary'],
+      // QUÉ entra en la cuenta: la lógica pura. Todo archivo de esta carpeta
+      // cuenta aunque ningún test lo importe.
+      include: ['src/lib/**'],
+      thresholds: { lines: 80, branches: 80 },
+    },
+  },
 })

@@ -48,8 +48,12 @@ describe('validarGasto', () => {
     expect(resultado.error).toBe('El monto tiene que ser mayor a cero.')
   })
 
-  it('rechaza un gasto sin categoría', () => {
-    const resultado = validarGasto({ ...valido, categoria: '  ' })
+  it.each([
+    ['sólo espacios', '  '],
+    ['vacía', ''],
+    ['nula', null],      // ← el camino que la cobertura no veía
+  ])('rechaza una categoría %s', (_caso, categoria) => {
+    const resultado = validarGasto({ ...valido, categoria })
 
     expect(resultado.valido).toBe(false)
     expect(resultado.error).toBe('La categoría es obligatoria.')
