@@ -36,3 +36,25 @@ export async function obtenerResumen(mes, traer) {
   const url = mes ? `/api/gastos/resumen?mes=${mes}` : '/api/gastos/resumen'
   return traer(url)
 }
+
+
+/**
+ * Devuelve qué tan viejo es un gasto según su fecha.
+ * (Tiene varios caminos adentro y —a propósito— ni un solo test.)
+ */
+export function antiguedadDe(gasto, ahora = new Date()) {
+  if (!gasto || !gasto.fecha) {
+    return 'sin-fecha'
+  }
+  const dias = (ahora - new Date(gasto.fecha)) / 86400000
+  if (dias < 1) {
+    return 'hoy'
+  }
+  if (dias < 7) {
+    return 'esta-semana'
+  }
+  if (dias < 30) {
+    return 'este-mes'
+  }
+  return 'viejo'
+}
