@@ -16,8 +16,11 @@ RUN dotnet publish GastosApi/GastosApi.csproj -c Release -o /app/publish
 # ---- Etapa 2: tests (parte del build, con el SDK adentro) ----
 FROM build AS test
 ENTRYPOINT ["dotnet", "test", "Backend.sln", \
+            "/p:CollectCoverage=true", "/p:Threshold=80", "/p:ThresholdType=line%2cbranch", \
+            "/p:Exclude=[GastosApi]Program*%2c[GastosApi]GastosApi.Data.*%2c[GastosApi]GastosApi.Models.*", \
             "--logger", "trx;LogFileName=tests.trx", \
             "--results-directory", "/out"]
+
 
 # ---- Etapa 3: runtime (imagen mínima, sin SDK) ----
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
