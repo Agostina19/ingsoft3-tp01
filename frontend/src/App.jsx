@@ -131,7 +131,7 @@ function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <h1>💸 MIS GASTOS </h1>
+        <h1>💸 MIS GASTOS version -Rollback</h1>
         <div className="total-chip">Total: {pesos(total)}</div>
       </header>
 
