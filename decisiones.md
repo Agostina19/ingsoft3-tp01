@@ -1,3 +1,23 @@
+
+## Enlaces de TP6
+
+**(a) Paquetes públicos del registry** (etiquetados con el commit del merge del PR #26, `7e3bf50`):
+- Backend: https://github.com/Agostina19/ingsoft3-tp01/pkgs/container/ingsoft3-tp01-backend
+  - `docker pull ghcr.io/agostina19/ingsoft3-tp01-backend:sha-7e3bf50bacb2600a25a2857c0d1b6bb26a220a01`
+- Frontend: https://github.com/Agostina19/ingsoft3-tp01/pkgs/container/ingsoft3-tp01-frontend
+  - `docker pull ghcr.io/agostina19/ingsoft3-tp01-frontend:sha-7e3bf50bacb2600a25a2857c0d1b6bb26a220a01`
+
+**(b) La cadena de la Tarea 1:**
+- Job del PR, con «Entrar al registry» salteado: https://github.com/Agostina19/ingsoft3-tp01/actions/runs/38190248956/job/114621252019?pr=23
+- Corrida de `main`, con la publicación como último paso: https://github.com/Agostina19/ingsoft3-tp01/actions/runs/38190612658/job/114622382181
+
+**(c) Entornos:**
+- QA: front https://gastos-front-qa-7ph4.onrender.com · API https://gastos-api-qa-1sjb.onrender.com
+- PROD: front https://gastos-front-prod-267c.onrender.com · API https://gastos-api-prod-zf3e.onrender.com
+
+---
+
+## TP 1 - Configuracion de GIT y merge
 Por qué Git no pudo resolver el conflicto solo — y qué habría tenido que pasar para que nunca apareciera?
  Las ramas A y B modificaron la misma línea del README y Git no tiene forma de saber cuál de las dos versiones
  es la correcta, ya que esto es una decision del autor de contenido.Para que nunca hubiera aparecido, 
@@ -379,3 +399,151 @@ los checks en rojo y en verde en Actions y leyendo cada assert para saber
 qué comprueba. Casos que sé que no están cubiertos: fechas inválidas o
 futuras en `antiguedadDe`, los endpoints de `Program.cs` (404, PUT,
 DELETE) y `GastosRepositorio`, que necesita una base real.
+
+
+
+## TP6 — Continuous Delivery: QA automático, PROD con aprobación
+
+### Por qué la imagen se publica sólo con la verificación en verde
+El pipeline publica las imágenes en ghcr.io sólo desde `main` y como **último paso** del mismo job
+que corre los tests. Son tres eslabones encadenados: (1) nada entra a `main` sin los checks en verde
+(required checks del TP4/TP5), (2) sólo `main` publica (en un PR el login al registry se saltea y el
+`push` es `false`), y (3) si un test falla, el job se corta antes de llegar al paso que publica.
+Así, una imagen `sha-<commit>` en el registry significa "este commit pasó la verificación". Si se
+publicara igual con los tests en rojo, el registry dejaría de significar eso: habría imágenes
+rotas mezcladas con las buenas y no habría forma de distinguirlas.
+Lo que esto **no** garantiza: alguien con permisos podría hacer un `docker push` a mano con el mismo
+tag. Para atarlo de verdad haría falta desplegar por **digest** (el hash del contenido de la imagen),
+no por tag.
+
+### Continuous Delivery vs Continuous Deployment
+Implementé **Continuous Delivery**: QA se despliega solo después de cada merge, pero a PROD sólo se
+llega con mi aprobación. En Continuous Deployment no hay humano: todo lo que pasa los checks llega
+solo a producción. Para eso me faltaría una red de seguridad mucho más fuerte: tests de integración
+y end-to-end,por ejemplo. A esta altura a mi pipeline le faltaria madurez para llevarlo a continuous deployment.
+
+### El diseño de la cadena y el alcance de cada secret
+`build-backend` + `build-frontend` → `deploy-qa` → `deploy-prod`
+- `deploy-qa` tiene `needs: [build-backend, build-frontend]`: sin CI verde no hay deploy.
+- `deploy-qa` tiene `if: github.ref == 'refs/heads/main'`: los PRs verifican pero no despliegan.
+- `deploy-qa` usa `environment: qa` y `deploy-prod` usa `environment: production`, con required
+  reviewer (yo, con *Prevent self-review* desactivado). El job de PROD no arranca hasta que apruebo.
+- `deploy-prod` tiene `needs: deploy-qa`: no se llega a PROD sin QA desplegado y con smoke verde.
+- Los hooks se llaman con `&ref=$GITHUB_SHA`: Render despliega **el commit que este pipeline
+  verificó**, no la punta de `main`. Importa porque entre que la corrida queda esperando y que yo
+  apruebo puede entrar otro merge: sin el `&ref=`, aprobaría A y a PROD subiría B, que nadie aprobó.
+  Por eso también `deploy-prod` tiene `concurrency` con `cancel-in-progress: false`: dos deploys a
+  PROD no corren a la vez, y uno no cancela al otro a mitad de camino.
+- **Secrets**: los cuatro deploy hooks son **environment secrets**. `RENDER_HOOK_API_QA` y
+  `RENDER_HOOK_FRONT_QA` viven en `qa`; `RENDER_HOOK_API_PROD` y `RENDER_HOOK_FRONT_PROD` viven en
+  `production`. Un job sólo ve los secrets de su environment, así que los de PROD sólo los lee un
+  job aprobado. Las connection strings de Neon no están en GitHub: están en las variables de entorno
+  de cada servicio de Render (QA apunta a `app_qa`, PROD a `app_prod`).
+
+### Qué miro antes de aprobar (los criterios del gate)
+1. Que `deploy-qa` esté verde **y** que en Render → Deploys el deploy de QA de ese commit figure
+   como **Live** (el smoke solo no alcanza, ver más abajo).
+2. Que el cambio se vea bien en QA: abro el front de QA y pruebo lo que cambió.
+3. Qué cambia este deploy: el PR mergeado y su diff.
+Si algo de eso no se cumple, rechazo con el motivo escrito. Lo hice una vez: rechacé el deploy de
+https://github.com/Agostina19/ingsoft3-tp01/actions/runs/38203259263 porque el smoke de QA pasó en
+36 segundos, antes de que Render terminara de construir: el verde era de la versión vieja, no de la
+nueva. El flujo completo aprobado (QA verde → Waiting for review → aprobación → PROD con smoke
+verde) está en https://github.com/Agostina19/ingsoft3-tp01/actions/runs/38204351414.
+Lo que mi aprobador **no** puede ver: qué versión está corriendo realmente (nada la informa), si
+hay errores en PROD (no tengo logs centralizados ni métricas) ni cómo se comporta con usuarios
+reales. Para decidir mejor me faltaría observabilidad.
+
+### Cómo comprobé que cada entorno usa su propia base
+Inserté un gasto `'SOY PROD'` sólo en `app_prod` desde el SQL Editor de Neon. Aparece en el front de
+PROD y **no** en el de QA. Si apareciera en los dos, PROD estaría escribiendo en la base de QA, y
+ningún check se pondría en rojo.
+
+### La letra chica del free tier y cómo la maneja el pipeline
+- **Sleep y cold start**: Render duerme cada servicio a los ~15 min sin tráfico y el primer request
+  lo despierta en hasta ~1 minuto. Por eso el smoke test **reintenta** (30 intentos cada 20 s) en vez
+  de hacer un curl seco, que daría falsos rojos. Neon suspende el cómputo a los ~5 min idle, pero se
+  despierta mucho más rápido.
+- **750 horas por mes, por workspace** (no por servicio): mis 4 servicios duermen cuando no se usan,
+  así que no llego. No dejo nada haciendo ping para mantenerlos despiertos.
+- **500 minutos de build por mes**: cada promoción son hasta 4 builds (back y front, en QA y PROD).
+  Medí entre 27 y 45 segundos por build (con caché), o sea unos 3 minutos por promoción: me alcanza
+  de sobra. El riesgo es que si se acaban, Render deja de construir, el hook responde igual y el
+  smoke da verde contra la versión vieja. El consumo lo miro en Workspace → Billing.
+- **El proveedor también falla**: el 14/10 Render tuvo un incidente («Builds are not starting in all
+  regions») y el deploy del API quedó trabado en Building 18 minutos. Ver el rollback, más abajo.
+- Uso Neon y no el Postgres de Render porque el gratuito de Render expira a los 30 días.
+
+### Qué garantía pierdo porque Render reconstruye desde el repo
+Promuevo el mismo **commit**, pero no la misma **imagen**. Lo que corre en QA y en PROD no es la
+imagen que mis tests aprobaron: es otra construcción del mismo código, hecha por Render. Podría
+salir distinta: una imagen base (`node`, `nginx`, `dotnet`) que se actualizó entre un build y otro,
+o una dependencia que cambió. Además, QA y PROD son dos builds separados, así que ni siquiera puedo
+asegurar que PROD corre exactamente lo que probé en QA. La imagen `sha-<commit>` del registry queda
+publicada pero no se usa. 
+
+### Qué prueba mi smoke test y qué no
+Prueba tres cosas: `/health` (el proceso del API está vivo), `/api/gastos` (el API llega a la base
+y la consulta funciona; un `/health` solo podría dar verde con la connection string rota) y que el
+front se sirve. **No prueba qué versión corre**: contesta igual la versión vieja que la nueva. Me
+pasó: el smoke de QA dio verde en 36 segundos con la versión anterior, mientras Render todavía
+construía la nueva (es el motivo de mi rechazo). Tampoco prueba que la app funcione bien
+(crear un gasto, los totales): sólo que responde.
+
+### Deployment pattern para producción real
+Elegiría **blue-green**: dos entornos completos de PROD y un router que manda el tráfico a uno.
+Despliego en el que no recibe tráfico, lo verifico, y cambio el router. Por qué ése:
+- **Rollback**: instantáneo, es volver el router al entorno anterior, sin reconstruir nada.
+- **Riesgo**: los usuarios nunca ven un deploy a medio terminar, y no hay downtime.
+- **Costo**: el doble de infraestructura. Para una app de gastos chica es caro, pero es lo que compra
+  el rollback rápido.
+- Descarté **canary** porque necesita métricas que me digan si la versión nueva anda peor, y con
+  pocos usuarios el porcentaje no muestra nada. **Rolling** no tiene sentido con una sola instancia.
+- **Lo que me falta para ejecutarlo**: Observabilidad. Hoy no tengo métricas de errores ni de
+  latencia en PROD, así que después del switch no podría saber con datos si la versión nueva anda
+  peor y conviene volver.
+
+
+### Plan de rollback actual (medido)
+Si un deploy aprobado sale mal:
+1. Busco el último deploy bueno: en GitHub → Deployments → `production`, o el tag de la release
+   anterior (`git rev-list -n1 v6.0.0`).
+2. Copio los deploy hooks de PROD desde Render (el secret de GitHub no se puede volver a leer).
+3. Disparo los dos hooks con `&ref=<sha bueno>`.
+4. Espero a que en Render → Deploys ese commit figure como **Live** en el API y en el front.
+
+Lo probé de verdad el 14/10: después de la release `v6.0.0` aprobé un cambio visible (PR #27, el
+título "MIS GASTOS version -Rollback", commit `25155af`) y volví a `v6.0.0` (`7e3bf50`).
+
+- **Front PROD**: arrancó 16:52:59 y quedó Live en **35,8 s**.
+- **API PROD**: el primer intento (16:52:02) quedó trabado en Building por el incidente de Render;
+  lo cancelé a los 18 minutos y volví a disparar el hook. El reintento arrancó 17:11:17 y quedó Live
+  en **45,3 s**.
+- En condiciones normales mi rollback tarda **menos de 1 minuto por servicio**. Ese día tardó
+  **unos 20 minutos** de punta a punta (16:52 → 17:12) por la falla del proveedor.
+
+**Lo que el rollback de código no deshace: los datos.** Si un deploy hubiera corrido una migración
+que borra una columna, volver al commit anterior no la recupera: la columna sigue borrada y el
+código viejo puede romperse contra el esquema nuevo. Para eso haría falta un backup de la base antes
+del deploy (o el *point-in-time restore* de Neon), y migraciones que sólo agreguen y no borren hasta
+que la versión vieja ya no corra.
+
+### Problemas encontrados y cómo los resolví
+- **El front no sabía a qué backend llamar en cada entorno**: el `nginx.conf` tenía la dirección del
+  backend fija. Lo convertí en plantilla (`default.conf.template`) que lee `BACKEND_URL` y
+  `DNS_RESOLVER` de las variables de entorno de cada servicio de Render.
+- **El smoke de QA daba verde antes de tiempo**: pasó en 36 s contra la versión vieja, porque Render
+  todavía estaba construyendo. Lo detecté mirando Render → Deploys, rechacé ese deploy a PROD y desde
+  ahí, antes de aprobar, confirmo que el deploy de QA figure como Live.
+- **El rollback del API se trabó en Building** por un incidente de Render. Lo diagnostiqué mirando
+  los logs (el build había terminado en 14 s y después no avanzó nada) y la página
+  status.render.com. Cancelé y volví a disparar el hook.
+- **El `git push` del tag falló con «Could not resolve host: github.com»**: era la conexión, no Git.
+  Lo reintenté cuando volvió internet, sin volver a crear el tag.
+
+### Declaración de uso de IA
+Usé Claude como asistente para entender los conceptos de la guía, armar el paso a paso de cada
+tarea (los jobs de deploy, los environments, el rollback) y redactar esta sección a partir de lo que
+hice y medí. Los cambios los hice yo y los verifiqué ejecutándolos: miré cada corrida en Actions, el
+estado de cada deploy en Render (commit, hora y Live), la prueba de `'SOY PROD'` en las dos bases y
+los tiempos del rollback, que salen de Render y no de una estimación.
