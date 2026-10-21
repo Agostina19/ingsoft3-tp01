@@ -19,3 +19,7 @@ Thumbs.db
 TestResults/
 coveragereport/
 coverage/
+
+# Reportes de Playwright (TP7)
+playwright-report/
+test-results/
