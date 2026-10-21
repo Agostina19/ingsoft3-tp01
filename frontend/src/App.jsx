@@ -150,6 +150,7 @@ function App() {
             <h2>{editandoId ? 'Editar gasto' : 'Nuevo gasto'}</h2>
             <form onSubmit={guardar}>
               <input
+                aria-label="Descripción del nuevo gasto"
                 placeholder="Descripción"
                 value={form.descripcion}
                 onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
@@ -158,13 +159,17 @@ function App() {
               <input
                 type="number"
                 step="0.01"
+                aria-label="Monto del nuevo gasto"
                 placeholder="Monto"
+
                 value={form.monto}
                 onChange={(e) => setForm({ ...form, monto: e.target.value })}
                 required
               />
               <input
+                aria-label="Categoría del nuevo gasto"
                 placeholder="Categoría"
+
                 value={form.categoria}
                 onChange={(e) => setForm({ ...form, categoria: e.target.value })}
                 required
@@ -178,7 +183,8 @@ function App() {
                 </button>
               )}
               
-              {error && <p style={{ color: 'crimson' }}>{error}</p>}
+              {error && <p role="alert" style={{ color: 'crimson' }}>{error}</p>}
+
 
             </form>
           </section>
@@ -224,7 +230,11 @@ function App() {
                       <td>{new Date(g.fecha).toLocaleDateString('es-AR')}</td>
                       <td className="acciones">
                         <button onClick={() => editar(g)}>Editar</button>
-                        <button className="danger" onClick={() => borrar(g.id)}>
+                        <button
+                          className="danger"
+                          aria-label={`Borrar ${g.descripcion}`}
+                          onClick={() => borrar(g.id)}
+                        >
                           Borrar
                         </button>
                       </td>

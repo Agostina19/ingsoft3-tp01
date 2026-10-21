@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { configDefaults } from 'vitest/config'   // ← NUEVO
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -15,6 +16,7 @@ export default defineConfig({
     },
   },
   test: {
+    exclude: [...configDefaults.exclude, 'e2e/**'],   // ← NUEVO: vitest NO toca los specs de Playwright
     coverage: {
       provider: 'v8',
       // json-summary deja coverage-summary.json: lo lee el pipeline para el Summary
