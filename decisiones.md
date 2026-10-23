@@ -1,3 +1,28 @@
+## Enlaces del TP7
+
+**(a) Paquetes públicos** (etiqueta del commit que está en PROD, `69c24d6`):
+- Backend: https://github.com/Agostina19/ingsoft3-tp01/pkgs/container/ingsoft3-tp01-backend
+  - `ghcr.io/agostina19/ingsoft3-tp01-backend:sha-69c24d6c4688dd797500994bcafdf3351b420337`
+- Frontend: https://github.com/Agostina19/ingsoft3-tp01/pkgs/container/ingsoft3-tp01-frontend
+  - `ghcr.io/agostina19/ingsoft3-tp01-frontend:sha-69c24d6c4688dd797500994bcafdf3351b420337`
+
+**(b) Corrida con integración VERDE y e2e ROJA:**
+- Commit que rompió la app (PR #31): https://github.com/Agostina19/ingsoft3-tp01/commit/942a35473c95459f88294f3c69cf2a59d088a131
+- Corrida: https://github.com/Agostina19/ingsoft3-tp01/actions/runs/39849490579
+- Reporte de integración (verde): https://github.com/Agostina19/ingsoft3-tp01/actions/runs/39849490579/artifacts/12456647758
+- Reporte e2e (rojo): https://github.com/Agostina19/ingsoft3-tp01/actions/runs/39849490579/artifacts/12456817865
+
+- Los dos reportes vencen el 29/10 (el workflow los guarda 7 días). Tengo descargadas copias. (c/Users/Agostina/Documents/tp7-reportes)
+
+**(c) Corrida completa en verde hasta PROD (el arreglo, PR #32):**
+https://github.com/Agostina19/ingsoft3-tp01/actions/runs/39876520571
+
+**(d) Entornos:**
+- QA: front https://gastos-front-qa-7ph4.onrender.com · API https://gastos-api-qa-1sjb.onrender.com
+- PROD: front https://gastos-front-prod-267c.onrender.com · API https://gastos-api-prod-zf3e.onrender.com
+
+---
+
 
 ## Enlaces de TP6
 
@@ -547,3 +572,98 @@ tarea (los jobs de deploy, los environments, el rollback) y redactar esta secci�
 hice y medí. Los cambios los hice yo y los verifiqué ejecutándolos: miré cada corrida en Actions, el
 estado de cada deploy en Render (commit, hora y Live), la prueba de `'SOY PROD'` en las dos bases y
 los tiempos del rollback, que salen de Render y no de una estimación.
+
+
+## TP7 — Contenedores en el pipeline, integración y e2e
+
+### Build once, deploy many
+En el TP6 Render reconstruía la app desde el repo en cada entorno, así que QA y PROD eran dos builds
+distintos y ninguno era la imagen que pasó mis tests. Ahora la imagen se construye una sola vez en
+el pipeline y QA y PROD ejecutan esa misma imagen. Se ve en el log: `deploy-qa` y `deploy-prod`
+mandan el mismo `imgURL` (`sha-69c24d6…`).
+
+### Etiquetas
+- `sha-<commit>` en el registry: dice de qué commit salió cada imagen. Es la que uso para desplegar.
+- `v7.0.0` en git: el nombre de la versión que está en PROD al cerrar el TP.
+- No publico `latest` porque cambia con cada publicación y no dice qué hay adentro: un deploy con
+  `latest` podría subir algo que no pasó las pruebas.
+- En Render configuré los 4 servicios con `sha-68e5531…` (el merge del PR #28). Esa es sólo la imagen
+  de partida: lo que corre lo define cada deploy del pipeline con su `imgURL`. No creé servicios
+  nuevos, les cambié la fuente a los que ya tenía, así no cambiaron las URLs.
+
+### De la release a la imagen
+`git rev-list -n1 v7.0.0` me da el commit, y con ese sha busco la etiqueta `sha-<commit>` en los
+dos paquetes.
+
+### Cómo compruebo que un entorno ejecuta mi imagen
+En los *Events* de cada servicio de Render, el deploy dice «Triggered via Deploy Hook» y nombra la
+imagen `sha-<commit>` de esa corrida, y esa etiqueta está en mis paquetes. El smoke no alcanza:
+sólo prueba que la app responde, y respondería igual si el deploy hubiera fallado y siguiera
+corriendo la versión anterior.
+
+### Qué pruebo en cada suite
+**Integración** (`e2e/api.spec.js`, contra la API de QA, sin navegador):
+1. Alta, la encuentro en la lista, la borro y ya no está.
+2. Descripción vacía: la API contesta 400 y no se crea nada.
+3. Resumen por categoría: creo un gasto con una categoría única, el resumen lo suma, lo borro y ya
+   no aparece.
+
+**e2e** (`e2e/gastos.spec.js`, con navegador, contra el front de QA):
+1. Crear un gasto, verlo en la lista, borrarlo y que ya no esté.
+2. Descripción de más de 100 caracteres: se ve el error y no se crea nada.
+3. Resumen por categoría: el gasto nuevo aparece en la pestaña Resumen con su monto, y al borrarlo
+   desaparece.
+
+La tercera de cada suite la elegí porque ver cuánto gasté por categoría es lo que más uso de la app,
+y la suma la hace la base. Si se rompe, la app deja de servirme.
+
+Lo que no puse:
+- En integración, cada regla de validación por separado (monto 0, categoría vacía): eso ya lo
+  cubren los unit tests del TP5.
+- En e2e, los filtros y la búsqueda: filtran en el navegador sin tocar la base, y también tienen
+  unit tests. Las e2e son lentas, así que dejo sólo lo crítico (pirámide).
+
+### Integración vs e2e: lo que me dijo la corrida roja
+La integración le habla a la API directo, con los nombres de campo correctos. La e2e usa la app
+como un usuario, así que prueba también cómo el front le habla a la API.
+En la corrida roja cambié en el front el campo `descripcion` por `desc`. La integración quedó
+verde y la e2e roja: la API y la base andaban bien, el que estaba mal era el front. En la traza de
+la e2e, en Network, el `POST /api/gastos` dio 400 y el body mandaba `desc`. El test de error pasó
+igual porque ese error lo valida el front antes de llamar a la API.
+
+### Por qué integración amplia (contra QA) y no estrecha
+- Gano: prueba la imagen exacta que va a PROD, contra el Postgres real de Neon, y casi sin
+  configuración extra.
+- Pierdo: corre recién después del deploy a QA (me entero más tarde), depende de que QA esté
+  despierto, y comparte la base de QA con otras corridas.
+
+### Cold start y tests flaky
+El smoke de `deploy-qa` ya despierta QA antes de las pruebas. Además, cada test tiene 60 s de tope
+y cada `expect` espera hasta 15 s a que aparezca lo que busca, sin `sleep`. Con `retries: 1`, un
+test que falla y pasa al reintentar sale como **flaky**: un test que a veces pasa y a veces no sin
+que cambie el código. En mis corridas hubo 0 flaky.
+
+### La misma imagen del front en QA y en PROD
+Adentro de la imagen van los archivos del build y la plantilla de nginx. Lo que cambia por entorno
+son dos variables de cada servicio de Render: `BACKEND_URL` (la API de ese entorno) y
+`DNS_RESOLVER`. El front llama a `/api` relativo y nginx lo manda a `BACKEND_URL`.
+
+### Límite conocido
+QA es uno solo. Si mergeo dos veces seguidas, la segunda corrida puede redesplegar QA mientras las
+pruebas de la primera están corriendo. Por eso hago un merge por vez.
+
+### Problemas encontrados y cómo los resolví
+- **Docker Desktop no arrancaba.** En los logs vi que varios archivos de configuración de Docker
+  (`daemon.json`, `windows-daemon.json`) habían quedado llenos de ceros después de que la compu se
+  colgó. Los reescribí con la configuración por defecto y limité la memoria de Docker a 2 GB con
+  `.wslconfig`.
+- **Un test agarraba dos botones.** `getByRole('button', { name: 'Resumen' })` también encontraba
+  el botón «Borrar resumen e2e…». Lo arreglé con `exact: true`.
+- **Faltaban labels en el front.** Los inputs sólo tenían placeholder. Agregué `aria-label` a los
+  inputs y a cada botón de borrar, y `role="alert"` al mensaje de error.
+- **Una e2e tardó 8 minutos**, pero no por los tests (8 s): fue instalar Chromium en el runner.
+
+### Declaración de uso de IA
+Usé Claude para entender la guía, armar el paso a paso y escribir los tests y esta sección a partir
+de lo que hice. Lo verifiqué corriendo los tests contra mi compose local y contra QA, mirando las
+corridas en Actions, los reportes y trazas de Playwright, y los *Events* de Render.
