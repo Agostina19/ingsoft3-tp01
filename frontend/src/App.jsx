@@ -81,7 +81,7 @@ function App() {
     setError('')
 
     const body = JSON.stringify({
-      desc: form.descripcion,
+      descripcion: form.descripcion,
       monto: Number(form.monto),
       categoria: form.categoria,
     })
