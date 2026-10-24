@@ -667,3 +667,34 @@ pruebas de la primera están corriendo. Por eso hago un merge por vez.
 Usé Claude para entender la guía, armar el paso a paso y escribir los tests y esta sección a partir
 de lo que hice. Lo verifiqué corriendo los tests contra mi compose local y contra QA, mirando las
 corridas en Actions, los reportes y trazas de Playwright, y los *Events* de Render.
+
+
+## TP8 — Infraestructura como Código
+
+### Riel y versiones
+Terraform (v1.16.6, instalado con winget) contra Neon y Render, los mismos proveedores del TP6.
+Providers fijados en `infra/main.tf`: `kislerdm/neon` **0.18.0** y `render-oss/render` **1.9.1**.
+Preprod es un entorno nuevo (base de Neon + api y front en Render corriendo la imagen de `v7.0.0`);
+QA y producción no se tocaron.
+
+### Problemas encontrados y cómo los resolví
+- **El primer `apply` falló con «org_id is required».** Mi cuenta de Neon está dentro de una
+  organización, y Neon pide en cuál crear el proyecto. Agregué `org_id` al `neon_project`, con el id
+  en `variables.tf` (no es un secreto).
+- **Preprod quedó en otra cuenta de Neon.** La API key la saqué de mi cuenta de la facu, y QA y
+  PROD están en mi cuenta personal. No es un problema, porque preprod no tiene que tocarlos, pero
+  para crearlo tengo que exportar la key de la cuenta de la facu.
+- **La URL de preprod cambia cada vez que lo recreo.** Render le agrega un sufijo nuevo
+  (`-7lq8` la primera vez, `-fs14` después del `destroy` → `apply`). Por eso leo las URLs del
+  `output`, y el front recibe la de su api por `BACKEND_URL = render_web_service.api.url`.
+- **Instalación de Terraform.** No tenía `choco`, así que lo instalé con `winget`. Después la
+  terminal no reconocía el comando hasta que cerré VS Code del todo.
+- **El `.gitignore` de la guía** tiene un comentario en la misma línea que `*.tfvars`. En un
+  `.gitignore` eso rompe la regla, así que puse el comentario en su propia línea.
+
+### Declaración de uso de IA
+Usé Claude para entender la guía y armar el paso a paso, y para escribir el HCL adaptado a mi app.
+Lo verifiqué corriendo cada `plan` y leyéndolo antes del `apply`, comprobando en las consolas de
+Neon y Render que preprod se creaba y se destruía, que QA y producción seguían intactos, y que
+`/health` y `/api/gastos` respondían.
+

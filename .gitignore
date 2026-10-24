@@ -23,3 +23,10 @@ coverage/
 # Reportes de Playwright (TP7)
 playwright-report/
 test-results/
+
+
+# Terraform (TP8)
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfvars
