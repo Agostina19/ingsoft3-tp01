@@ -33,7 +33,8 @@ using (var scope = app.Services.CreateScope())
 
 // ── Endpoint de salud ───────────────────────────────────────────────────────
 // Lo usa el healthcheck de Docker y sirve para saber "si esto contesta, anda".
-app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapMethods("/health", new[] { "GET", "HEAD" }, () => Results.Ok(new { status = "ok" }));
+
 
 // ── CRUD de gastos ──────────────────────────────────────────────────────────
 
