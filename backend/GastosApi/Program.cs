@@ -41,9 +41,6 @@ using (var scope = app.Services.CreateScope())
 // Lo usa el healthcheck de Docker y sirve para saber "si esto contesta, anda".
 app.MapMethods("/health", new[] { "GET", "HEAD" }, () => Results.Ok(new { status = "ok" }));
 
-// TEMPORAL (TP9): para ver un error llegar a Sentry. Se saca al cerrar el práctico.
-app.MapGet("/api/falla", string () => throw new InvalidOperationException("Falla de prueba del TP9"));
-
 
 // ── CRUD de gastos ──────────────────────────────────────────────────────────
 

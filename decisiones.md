@@ -698,3 +698,39 @@ Lo verifiqué corriendo cada `plan` y leyéndolo antes del `apply`, comprobando 
 Neon y Render que preprod se creaba y se destruía, que QA y producción seguían intactos, y que
 `/health` y `/api/gastos` respondían.
 
+## TP9 — DevSecOps, observabilidad y feedback
+
+### El PR de Dependabot que mergeé
+Mergeé el PR #41: actualizaba `@vitejs/plugin-react` (el plugin que usa Vite para compilar React)
+de **6.0.5 a 6.1.2**. Es un cambio **minor** según SemVer (agrega sin romper), y en el changelog no
+había breaking changes. Me animé porque toda la cadena quedó en verde: los unit tests y el build en
+el PR, y después del merge la integración y la e2e contra QA. No mergeé los que cambiaban de major
+(por ejemplo Npgsql 8 → 9) ni los que tienen que ir de a pares (`react` con `react-dom`, `vitest`
+con `@vitest/coverage-v8`).
+
+### El monitor y lo que me mostró Sentry
+- **Monitor (UptimeRobot sobre `/health` de PROD):** suspendí PROD a las 18:34. El monitor detectó
+  la caída a las **18:35:03** y me llegó el mail a las 18:35:47: **menos de 2 minutos**. Con el
+  intervalo de 5 minutos, el peor caso sería unos 5. Volvió a estar UP a las 18:45:55, después de
+  reanudarlo a las 18:41. Lo dejé pausado.
+- **Operación más usada: `GET /api/gastos`.** El front la pide cada vez que se carga la página y
+  después de cada alta o baja.
+- **Operación más lenta: también `GET /api/gastos`**, con P95 de **2,64 s** y P50 de 5 ms. El pedido
+  lento es el primero después de que la base gratuita de Neon se durmió. De ese dato salió la
+  tarjeta #52 del tablero.
+- **El error:** `GET /api/falla` (un endpoint temporal que agregué para probar): 4 eventos en
+  producción. Ya lo saqué del código.
+
+### Problemas encontrados y cómo los resolví
+- **El `/health` respondía 405 al monitor.** UptimeRobot gratis pregunta con `HEAD` y mi endpoint
+  sólo aceptaba `GET`. Lo cambié a `MapMethods` con `GET` y `HEAD` y lo llevé a PROD antes de crear
+  el monitor.
+- **Dos monitores sobre la misma URL.** UptimeRobot había creado uno solo al registrarme y después
+  creé el mío. Borré el duplicado.
+- **CodeQL encontró 4 avisos `missing-workflow-permissions`** en mi `ci.yml`: los jobs de deploy y de
+  pruebas no declaran `permissions`. Los dejé anotados para corregirlos.
+
+### Declaración de uso de IA
+Usé Claude para entender la guía y armar el paso a paso, y para adaptar los cambios de código
+(Dependabot, el `/health`, Sentry). Lo verifiqué yo: cada PR pasó la cadena completa hasta PROD, vi
+la caída en el historial del monitor, y los datos de errores, demoras y uso en Sentry.
