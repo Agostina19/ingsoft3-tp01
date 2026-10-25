@@ -19,6 +19,12 @@ builder.Services.AddDbContext<GastosContext>(options =>
 builder.Services.AddScoped<IGastosRepositorio, GastosRepositorio>();
 builder.Services.AddScoped<ServicioDeGastos>();
 
+builder.WebHost.UseSentry(o =>
+{
+    o.Dsn = builder.Configuration["SENTRY_DSN"] ?? ""; // llega por el entorno: sin la variable, Sentry queda apagado
+    o.TracesSampleRate = 1.0;                          // medir todos los pedidos
+});
+
 var app = builder.Build();
 
 // ── Crear el schema al arrancar ─────────────────────────────────────────────
@@ -34,6 +40,9 @@ using (var scope = app.Services.CreateScope())
 // ── Endpoint de salud ───────────────────────────────────────────────────────
 // Lo usa el healthcheck de Docker y sirve para saber "si esto contesta, anda".
 app.MapMethods("/health", new[] { "GET", "HEAD" }, () => Results.Ok(new { status = "ok" }));
+
+// TEMPORAL (TP9): para ver un error llegar a Sentry. Se saca al cerrar el práctico.
+app.MapGet("/api/falla", string () => throw new InvalidOperationException("Falla de prueba del TP9"));
 
 
 // ── CRUD de gastos ──────────────────────────────────────────────────────────
